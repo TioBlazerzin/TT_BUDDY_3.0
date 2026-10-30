@@ -1,0 +1,139 @@
+// TT BUDDY - Agente Roblox (Gemini decide, MCP executa, loop ate concluir)
+const DAEMON = 'http://127.0.0.1:34718'
+const MAX_STEPS = 15
+let toolCache = null
+
+async function mcp(tool, args) {
+  const r = await fetch(DAEMON, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool, args: args || {} }),
+    signal: AbortSignal.timeout(60000)
+  })
+  const j = await r.json()
+  if (!j.ok) throw new Error(j.error || 'erro no daemon')
+  return String(j.text)
+}
+
+async function getTools() {
+  if (toolCache) return toolCache
+  toolCache = JSON.parse(await mcp('__list_tools__'))
+  return toolCache
+}
+
+function models() {
+  const m = [process.env.GEMINI_CHAT_MODEL || 'gemini-3.5-flash-lite']
+  for (const x of (process.env.TT_AGENT_MODELS || 'gemini-3.1-flash-lite,gemini-flash-lite-latest,gemini-3.5-flash').split(',')) {
+    if (x && !m.includes(x)) m.push(x.trim())
+  }
+  return m
+}
+
+async function llm(messages) {
+  const key = process.env.GEMINI_API_KEY
+  if (!key) throw new Error('GEMINI_API_KEY nao definida')
+  let last = ''
+  for (const model of models()) {
+    const res = await fetch('https://generativelanguage.googleapis.com/v1beta/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + key },
+      body: JSON.stringify({ model, messages, temperature: 0.2 }),
+      signal: AbortSignal.timeout(90000)
+    })
+    if ([429, 404, 503, 500].includes(res.status)) { last = model + ' HTTP ' + res.status; continue }
+    if (!res.ok) throw new Error('Gemini HTTP ' + res.status + ' ' + (await res.text()).slice(0, 200))
+    const j = await res.json()
+    const t = j?.choices?.[0]?.message?.content
+    if (t) return String(t)
+    last = model + ' vazio'
+  }
+  throw new Error('Todos os modelos falharam (' + last + '). Provavel cota do plano gratuito.')
+}
+
+function parseJson(raw) {
+  let s = String(raw).trim().replace(/^```(?:json)?/i, '').replace(/```$/, '').trim()
+  try { return JSON.parse(s) } catch {}
+  const a = s.indexOf('{'), b = s.lastIndexOf('}')
+  if (a >= 0 && b > a) { try { return JSON.parse(s.slice(a, b + 1)) } catch {} }
+  return null
+}
+
+const MUTATING = /execute_luau|write|edit|update|replace|create|delete|insert|set_|move|rename|clone|destroy|remove|add_|apply|patch|multi/i
+
+function systemPrompt(tools) {
+  const lista = tools.map(t => {
+    const props = t.schema && t.schema.properties ? Object.keys(t.schema.properties).join(', ') : ''
+    const req = t.schema && t.schema.required ? ' (obrigatorios: ' + t.schema.required.join(', ') + ')' : ''
+    return '- ' + t.name + '(' + props + ')' + req + ': ' + (t.description || '').replace(/\s+/g, ' ')
+  }).join('\n')
+  return [
+    'Voce e o TT BUDDY, agente que controla o Roblox Studio do usuario Matheus via MCP. Responda em portugues.',
+    'A cada turno responda SOMENTE com um JSON, sem texto fora dele, em um destes formatos:',
+    '{"tool":"nome_da_ferramenta","args":{...},"why":"motivo curto"}   para chamar uma ferramenta',
+    '{"final":"resumo para o usuario"}   quando a tarefa estiver concluida ou voce precisar de uma resposta dele',
+    'REGRAS:',
+    '- Uma ferramenta por turno. Voce recebera o resultado real e decide o proximo passo.',
+    '- Antes de editar um script, LEIA o script. Antes de criar algo, inspecione o que ja existe para nao duplicar.',
+    '- Para melhorar scripts: leia, entenda, aplique a mudanca, e releia/verifique depois.',
+    '- Para varias edicoes, faca em sequencia, uma por vez, verificando cada uma.',
+    '- Em execute_luau use Luau valido, retorne algo com return para ver o resultado, e nunca apague coisas que o usuario nao pediu.',
+    '- NUNCA invente resultados. Se uma ferramenta falhar, leia o erro e tente corrigir (ate 2 vezes), depois explique.',
+    '- No final, diga objetivamente o que foi feito e o que mudou. Avise que Ctrl+Z desfaz.',
+    'FERRAMENTAS DISPONIVEIS:',
+    lista
+  ].join('\n')
+}
+
+async function runAgent(userText, history, emit) {
+  const tools = await getTools()
+  const names = new Set(tools.map(t => t.name))
+  const msgs = [{ role: 'system', content: systemPrompt(tools) }, ...history, { role: 'user', content: userText }]
+  let waypoint = false
+  let invalid = 0
+
+  const finish = async () => {
+    if (waypoint && names.has('execute_luau')) {
+      try { await mcp('execute_luau', { code: 'game:GetService("ChangeHistoryService"):SetWaypoint("TT BUDDY: depois")' }) } catch {}
+    }
+  }
+
+  for (let step = 1; step <= MAX_STEPS; step++) {
+    emit('pensando (passo ' + step + ')')
+    const raw = await llm(msgs)
+    const obj = parseJson(raw)
+    if (!obj) {
+      if (++invalid > 2) { history.push({ role: 'user', content: userText }, { role: 'assistant', content: String(raw) }); await finish(); return String(raw) }
+      msgs.push({ role: 'assistant', content: String(raw) }, { role: 'user', content: 'Responda SOMENTE com JSON valido no formato pedido.' })
+      continue
+    }
+    if (obj.final !== undefined) {
+      await finish()
+      msgs.push({ role: 'assistant', content: JSON.stringify(obj) })
+      history.splice(0, history.length, ...msgs.slice(1))
+      return String(obj.final)
+    }
+    if (obj.tool) {
+      let result
+      if (!names.has(obj.tool)) {
+        result = 'ERRO: ferramenta "' + obj.tool + '" nao existe. Use uma da lista.'
+      } else {
+        if (!waypoint && MUTATING.test(obj.tool) && names.has('execute_luau')) {
+          try { await mcp('execute_luau', { code: 'game:GetService("ChangeHistoryService"):SetWaypoint("TT BUDDY: antes")' }) } catch {}
+          waypoint = true
+        }
+        emit('executando ' + obj.tool + (obj.why ? ' - ' + obj.why : ''))
+        try { result = await mcp(obj.tool, obj.args || {}) } catch (e) { result = 'ERRO: ' + e.message }
+      }
+      result = String(result)
+      if (result.length > 7000) result = result.slice(0, 7000) + '\n...[cortado, ' + result.length + ' caracteres no total]'
+      msgs.push({ role: 'assistant', content: JSON.stringify(obj) }, { role: 'user', content: 'RESULTADO de ' + obj.tool + ':\n' + result })
+      continue
+    }
+    msgs.push({ role: 'assistant', content: JSON.stringify(obj) }, { role: 'user', content: 'Formato invalido. Use {"tool":...,"args":{...}} ou {"final":"..."}.' })
+  }
+  await finish()
+  history.splice(0, history.length, ...msgs.slice(1))
+  return 'Cheguei ao limite de ' + MAX_STEPS + ' passos. Veja o que ja foi feito no Studio e me diga se devo continuar.'
+}
+
+module.exports = { runAgent, getTools, mcp }

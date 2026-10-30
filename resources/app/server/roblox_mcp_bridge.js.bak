@@ -1,0 +1,37 @@
+// BRIDGE V7 - NAO CARREGA AUTOMATICO NO BOOT, SO QUANDO CHAMADO
+// Isso evita o codigo 1
+const { spawn } = require('child_process');
+const path = require('path');
+
+function runPython(code) {
+  return new Promise((resolve) => {
+    const p = spawn('python', ['-c', code], { windowsHide: true });
+    let out = '';
+    p.stdout.on('data', d => out += d.toString());
+    p.stderr.on('data', d => out += d.toString());
+    p.on('close', () => resolve(out));
+  });
+}
+
+async function callMcp(tool) {
+  const base = path.join(__dirname, 'python').replace(/\\/g, '\\\\');
+  const tt = path.join(__dirname, 'python', 'tt').replace(/\\/g, '\\\\');
+  let py = '';
+  if (tool === 'roblox_ping') {
+    py = "import sys; sys.path.insert(0, r'" + base + "'); sys.path.insert(0, r'" + tt + "'); from tt.mcp_client import call_tool_sync; r=call_tool_sync('get_studio_state', {}); print(r.content[0].text if hasattr(r,'content') and r.content else str(r))";
+  } else if (tool === 'roblox_list') {
+    py = "import sys; sys.path.insert(0, r'" + base + "'); sys.path.insert(0, r'" + tt + "'); from tt.mcp_client import call_tool_sync; r=call_tool_sync('list_roblox_studios', {}); print(r.content[0].text if hasattr(r,'content') and r.content else str(r))";
+  } else {
+    py = "import sys; sys.path.insert(0, r'" + base + "'); sys.path.insert(0, r'" + tt + "'); from tt.mcp_client import call_tool_sync; r=call_tool_sync('get_studio_state', {}); print(r.content[0].text if hasattr(r,'content') and r.content else str(r))";
+  }
+  return await runPython(py);
+}
+
+module.exports = {
+  roblox_ping: () => callMcp('roblox_ping'),
+  roblox_state: () => callMcp('roblox_state'),
+  roblox_list: () => callMcp('roblox_list'),
+  roblox_console: () => callMcp('roblox_console'),
+  roblox_run_code: (args) => callMcp('roblox_ping'),
+  roblox_mcp: (args) => callMcp('roblox_ping')
+};

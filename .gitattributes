@@ -1,0 +1,2 @@
+TT_BUDDY.exe filter=lfs diff=lfs merge=lfs -text
+resources/app/server/node_modules.bak/@next/swc-win32-x64-msvc/next-swc.win32-x64-msvc.node filter=lfs diff=lfs merge=lfs -text

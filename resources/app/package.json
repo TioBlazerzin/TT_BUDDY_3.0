@@ -1,0 +1,9 @@
+{
+  "name": "tt-buddy",
+  "productName": "TT_BUDDY",
+  "version": "3.0.0",
+  "description": "TT_BUDDY 3.0 — Assistente de IA com HUD futurista (edicao Blue Premium)",
+  "main": "electron-main.js",
+  "author": "TT_BUDDY",
+  "license": "MIT"
+}

@@ -1,0 +1,57 @@
+const { spawn } = require('child_process');
+const path = require('path');
+
+const MCP_BAT = process.env.LOCALAPPDATA + '\\Roblox\\mcp.bat';
+const CLIENT_PY = path.join(__dirname, 'mcp_direto_sem_llm.py');
+
+async function callPython(tool, args={}){
+  return new Promise((resolve, reject)=>{
+    const py = spawn('python', [CLIENT_PY, '--tool', tool, '--args', JSON.stringify(args)], { 
+      cwd: __dirname,
+      env: {...process.env, PYTHONIOENCODING: 'utf-8'}
+    });
+    let out='', err='';
+    py.stdout.on('data', d=> out+=d.toString());
+    py.stderr.on('data', d=> err+=d.toString());
+    py.on('close', code=>{
+      if(out) resolve(out.trim());
+      else reject(new Error(err||'python fail '+code));
+    });
+    // Timeout 30s
+    setTimeout(()=>{ try{py.kill();}catch{} reject(new Error('timeout')); }, 30000);
+  });
+}
+
+// Função direta que chama o mcp.bat sem passar pelo CLIENT_PY (mais rápido)
+async function callDirect(tool, args={}){
+  const mcpClientPy = path.join(__dirname, 'python', 'tt', 'mcp_client.py');
+  return new Promise((resolve, reject)=>{
+    const payload = JSON.stringify({tool, args});
+    const py = spawn('python', [mcpClientPy, payload], { cwd: __dirname });
+    let out='', err='';
+    py.stdout.on('data', d=> out+=d.toString());
+    py.stderr.on('data', d=> err+=d.toString());
+    py.on('close', code=>{
+      if(code===0) resolve(out.trim());
+      else reject(new Error(err||out));
+    });
+    setTimeout(()=>{ try{py.kill();}catch{} reject(new Error('timeout 30s')); }, 30000);
+  });
+}
+
+async function roblox_ping(){
+  try{ return await callDirect('ping', {}); } catch(e){ return `[PING] Erro: ${e.message} - Verifique se Studio está com MCP ativo`; }
+}
+async function roblox_state(){ return await callDirect('get_studio_state', {}); }
+async function roblox_list(){ return await callDirect('list_roblox_studios', {}); }
+async function roblox_console(args){ return await callDirect('get_console_output', args||{limit:100}); }
+async function roblox_run_code(args){ return await callDirect('execute_luau', args); }
+async function roblox_mcp(args){
+  // args = {tool: "search_game_tree", arguments: {query: "Tower"}}
+  const tool = args.tool || args.name || 'ping';
+  const toolArgs = args.arguments || args.args || {};
+  return await callDirect(tool, toolArgs);
+}
+
+module.exports = { roblox_ping, roblox_state, roblox_list, roblox_console, roblox_run_code, roblox_mcp };
+console.log('[TT MCP] Bridge FINAL 100% carregado - Direto sem LLM + FreeLLMAPI fallback');

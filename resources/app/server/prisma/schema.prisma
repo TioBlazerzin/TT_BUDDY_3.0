@@ -1,0 +1,85 @@
+// ============================================================
+// TT BUDDY 3.0 — Schema da memória (SQLite via Prisma)
+// Porta da lógica do legado: users, facts, conversations,
+// history (messages) e conv_summaries.
+// ============================================================
+
+generator client {
+  provider      = "prisma-client-js"
+  // "windows" embute o engine do Windows no pacote (executável .exe)
+  binaryTargets = ["native", "windows"]
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Usuário identificado no login (single-user local)
+model UserProfile {
+  id        Int      @id @default(autoincrement())
+  name      String
+  aiName    String   @default("TT BUDDY")
+  createdAt DateTime @default(now())
+}
+
+// Fatos de longo prazo (memória persistente)
+model Fact {
+  id        Int      @id @default(autoincrement())
+  topic     String
+  content   String
+  source    String   @default("local")
+  verified  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([topic])
+}
+
+// Conversas isoladas (chats)
+model Conversation {
+  id        Int       @id @default(autoincrement())
+  title     String    @default("Novo chat")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @default(now())
+  messages  Message[]
+}
+
+// Histórico de mensagens (role: user | assistant | system)
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  role           String
+  content        String
+  lane           String       @default("") // fasttrack | reasoning | buddy | exit
+  tool           String       @default("")
+  tookMs         Int          @default(0)
+  meta           String       @default("") // JSON: citations, imageUrl, linkCard...
+  createdAt      DateTime     @default(now())
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+}
+
+// Resumo contínuo da conversa (continuidade barata, sem LLM extra)
+model ConversationSummary {
+  conversationId Int      @id
+  summary        String
+  updatedAt      DateTime @default(now())
+}
+
+// Configurações persistidas (settings.json equivalente)
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @default(now())
+}
+
+// Log de auditoria das ferramentas (tt_audit.log equivalente)
+model ToolAudit {
+  id        Int      @id @default(autoincrement())
+  tool      String
+  ok        Boolean  @default(true)
+  args      String   @default("")
+  result    String   @default("")
+  createdAt DateTime @default(now())
+}

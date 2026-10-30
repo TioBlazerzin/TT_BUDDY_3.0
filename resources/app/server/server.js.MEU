@@ -1,0 +1,28 @@
+const { createServer } = require('http')
+const { parse } = require('url')
+const next = require('next')
+try { require('./mcp_override'); console.log('[TT BOOT] Override FINAL'); } catch(e){}
+const dev = false
+const hostname = '127.0.0.1'
+const port = process.env.PORT || 34717
+const app = next({ dev, hostname, port, dir: __dirname })
+const handle = app.getRequestHandler()
+app.prepare().then(() => {
+  createServer(async (req, res) => {
+    try {
+      const parsedUrl = parse(req.url, true)
+      if(parsedUrl.pathname?.includes('/api/chat')){
+        console.log(`[CHAT] ${req.method} ${parsedUrl.pathname}`);
+      }
+      await handle(req, res, parsedUrl)
+    } catch (err) {
+      console.error('Error', req.url, err.message)
+      res.statusCode = 500
+      res.end('error: '+err.message)
+    }
+  }).listen(port, (err) => {
+    if (err) throw err
+    console.log(`> Ready on http://${hostname}:${port}`)
+    console.log(`> TT BUDDY DEBUG FIXADO - CHUNKS RESTAURADOS`);
+  })
+})

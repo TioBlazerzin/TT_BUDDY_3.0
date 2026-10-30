@@ -1,0 +1,27 @@
+
+# Protecao automatica antes da publicacao
+node_modules/
+.venv/
+venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.next/
+coverage/
+.env
+.env.*
+!.env.example
+!.env.sample
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+credentials.json
+secrets.json
+token.json
+*.log
+Thumbs.db
+desktop.ini
+.DS_Store

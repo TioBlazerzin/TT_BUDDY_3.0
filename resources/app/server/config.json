@@ -1,0 +1,17 @@
+﻿{
+    "logLevel":  "debug",
+    "openaiModel":  "auto",
+    "openaiBaseUrl":  "http://127.0.0.1:31415/v1",
+    "debug":  true,
+    "openaiApiKey":  "freellmapi-98477c1dd89442768449a2a9dcecdf07232519610c365d3d",
+    "geminiApiKey":  "AQ.Ab8RN6I-DGDTYrzy2r3OgR-8Pk58tfhD0zmyVFEN3JkHwmzcNg",
+    "geminiChatModel":  "gemini-2.5-flash",
+    "freellmapiKey":  "freellmapi-98477c1dd89442768449a2a9dcecdf07232519610c365d3d",
+    "llmProvider":  "openai",
+    "freellmapiBaseUrl":  "http://127.0.0.1:31415/v1",
+    "fallbackChain":  [
+                          "openai",
+                          "gemini"
+                      ],
+    "temperature":  0.5
+}

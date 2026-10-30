@@ -1,0 +1,31 @@
+════════════════════════════════════════════════════════════
+  TT_BUDDY 3.0 — Edicao Blue Premium (Windows x64)
+════════════════════════════════════════════════════════════
+
+COMO USAR
+  1. Extraia esta pasta em qualquer lugar (ex.: C:\TT_BUDDY)
+  2. Dado duplo clique em  TT_BUDDY.exe
+  3. Pronto — a janela do sistema abre sozinha.
+     Nao precisa de navegador, Node.js, Bun nem localhost.
+
+PRIMEIRA EXECUCAO
+  - O Windows SmartScreen pode mostrar um aviso por o app nao ser
+    assinado digitalmente. Clique em "Mais informacoes" → "Executar assim mesmo".
+  - Na primeira execucao o banco de dados e copiado para a pasta
+    "data" ao lado do .exe. Seus chats/memoria ficam gravados ali.
+
+IA (OPCIONAL)
+  - Por padrao o TT_BUDDY usa o provedor nativo TT-CORE (sem chave).
+  - Para usar Gemini / DeepSeek / OpenAI, abra o arquivo config.json
+    (ao lado do TT_BUDDY.exe ou dentro de resources\app), preencha a
+    chave desejada e reinicie o app.
+
+DADOS E ARQUIVOS
+  TT_BUDDY.exe ............ aplicativo principal
+  data\ ................... banco de dados + config (criado no 1o uso)
+  resources\app\config.json  template de configuracao de IA
+  resources\app\server\ ... servidor embutido (nao mexa)
+
+REQUISITOS
+  Windows 10/11 x64. Nenhuma instalacao adicional e necessaria.
+════════════════════════════════════════════════════════════

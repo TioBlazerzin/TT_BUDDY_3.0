@@ -1,0 +1,46 @@
+import json, sys, asyncio
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import mcp_client
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+
+class H(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_POST(self):
+        code = 200
+        try:
+            n = int(self.headers.get("Content-Length", 0))
+            p = json.loads(self.rfile.read(n) or b"{}")
+            nome = p.get("tool") or "get_studio_state"
+            if nome == "__list_tools__":
+                ts = asyncio.run(mcp_client.list_tools())
+                txt = json.dumps([{"name": t.name, "description": (t.description or "")[:300], "schema": t.inputSchema} for t in ts])
+            else:
+                if nome == "ping":
+                    nome = "get_studio_state"
+                r = mcp_client.call_tool_sync(nome, p.get("args") or {})
+                txt = "\n".join(getattr(i, "text", str(i)) for i in (getattr(r, "content", None) or [])) or str(r)
+            body = {"ok": True, "text": txt}
+        except Exception as e:
+            code = 500
+            body = {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        out = json.dumps(body).encode("utf-8")
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Content-Length", str(len(out)))
+        self.end_headers()
+        self.wfile.write(out)
+
+if __name__ == "__main__":
+    try:
+        mcp_client.call_tool_sync("get_studio_state", {})
+        print("Sessao MCP aberta com o Studio.")
+    except Exception as e:
+        print("Aviso ao abrir sessao:", e)
+    print("Daemon MCP em http://127.0.0.1:34718")
+    HTTPServer(("127.0.0.1", 34718), H).serve_forever()

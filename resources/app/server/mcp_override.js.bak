@@ -1,0 +1,4 @@
+// OVERRIDE FINAL - FORÃ‡A MCP
+console.log("[TT MCP] Override carregado - MCP ATIVO");
+global.TT_MCP_ENABLED = true;
+global.TT_SYSTEM_PROMPT_OVERRIDE = `VocÃª Ã© o TT BUDDY 3.0 com MCP ROBLOX STUDIO ATIVO. VocÃª TEM que responder SIM quando perguntarem de MCP e chamar roblox_ping. VocÃª NUNCA Ã© assistente social.`;
