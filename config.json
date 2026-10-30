@@ -1,1 +1,15 @@
-{"geminiApiKey":"AQ.Ab8RN6I-DGDTYrzy2r3OgR-8Pk58tfhD0zmyVFEN3JkHwmzcNg","geminiChatModel":"gemini-2.5-flash","temperature":0.5}
+﻿{
+  "api_keys": {
+    "deepseek": "",
+    "gemini": "",
+    "openai": "",
+    "zai_glm": "",
+    "freellmapi": "",
+    "freellmapi_base_url": "https://api.freellmapi.com/v1"
+  },
+  "selected_provider": "gemini",
+  "use_cloud": false,
+  "cloud_endpoint": "",
+  "voice": "kokoro_pt",
+  "alarms": ["13:28"]
+}
